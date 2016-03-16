@@ -22,6 +22,8 @@ except:
     warnings.warn("Can't import Audio from IPython.display; "
                   "Wave.make_audio() will not work.")
 
+#################################################################################################
+
 
 def read_wave(filename='sound.wav'):
     # Reads a wave file
@@ -34,12 +36,6 @@ def read_wave(filename='sound.wav'):
     nframes = fp.getnframes()		# number of audio frames
     sampwidth = fp.getsampwidth()	# sample width in bytes
     framerate = fp.getframerate()	# sampling frequency
-
-    #TEST
-    # print "nchannels: ", nchannels
-    # print "nframes: ", nframes
-    # print "sampwidth: ", sampwidth
-    # print "framerate: ", framerate
     
     z_str = fp.readframes(nframes)	# reads and returns at most nframes of audio as a string of bytes
     
@@ -75,7 +71,7 @@ def find_index(x, xs):
 
 	return int(i)
 
-########################################################################
+###########################################################################################
 
 
 class Wave:
@@ -91,19 +87,10 @@ class Wave:
 		self.ys = np.asanyarray(ys)
 		self.framerate = framerate if framerate is not None else 11025
 
-		# if framerate is None:
-		# 	self.framerate = 11025
-		# else:
-		# 	self.framerate = framerate
-
-		#self.ts = np.arange(len(ys)) / self.framerate
-
 		if ts is None:
 			self.ts = np.arange(len(ys)) / float(self.framerate)
 		else:
 			self.ts = np.asanyarray(ts)
-
-    ###################################################################
 
    	def copy(self):
         # makes a copy.
@@ -157,11 +144,6 @@ class Wave:
 	        i = self.find_index(start)
 
 		j = None if duration is None else self.find_index(start + duration)
-
-	    # if duration is None:
-	    # 	j = None
-	    # else:
-	  		# j = self.find_index(start + duration)
 
 	    return self.slice(i, j)
 
@@ -237,50 +219,6 @@ class Wave:
 ############################################################################
 
 
-def normalize(ys, amp=1.0):
-	# normalize a wave array so the maximum amplitude is +amp or -amp
-	#
-	# ys: wave array
-	# amp: max amplitude (pos or neg) in result
-	#
-	# return: wave array
-    
-    high = abs(max(ys))
-    low = abs(min(ys))
-
-    return amp * ys / max(high, low)
-
-def apodize(ys, framerate, denom=20, duration=0.1):
-	# tapers the amplitude at the beginning and end of the signal.
-	#
-	# tapers either the given duration of time or the given fraction of the total duration, whichever is less
-	#
-	# ys: wave array
-	# framerate: int frames per second
-	# denom: float fraction of the segment to taper
-	# duration: float duration of the taper in seconds
-	#
-	# return: wave array
-
-    # a fixed fraction of the segment
-    n = len(ys)
-    k1 = n // denom
-
-    # a fixed duration of time
-    k2 = int(duration * framerate)
-
-    k = min(k1, k2)
-
-    w1 = np.linspace(0, 1, k)
-    w2 = np.ones(n - 2*k)
-    w3 = np.linspace(1, 0, k)
-
-    window = np.concatenate((w1, w2, w3))
-    return ys * window
-
-##############################################################################
-
-
 class _SpectrumParent:
 	# contains code common to Spectrum
 
@@ -351,8 +289,6 @@ class Spectrum(_SpectrumParent):
 
 		return len(self.hs)
 
-	################################################################################
-
 	def low_pass(self, cutoff, factor=0):
 		# attenuate frequencies above the cutoff
 		#
@@ -393,3 +329,47 @@ class Spectrum(_SpectrumParent):
 			ys = np.fft.irfft(self.hs)
 
 		return Wave(ys, framerate=self.framerate)
+
+#################################################################################################
+
+
+def normalize(ys, amp=1.0):
+	# normalize a wave array so the maximum amplitude is +amp or -amp
+	#
+	# ys: wave array
+	# amp: max amplitude (pos or neg) in result
+	#
+	# return: wave array
+    
+    high = abs(max(ys))
+    low = abs(min(ys))
+
+    return amp * ys / max(high, low)
+
+def apodize(ys, framerate, denom=20, duration=0.1):
+	# tapers the amplitude at the beginning and end of the signal.
+	#
+	# tapers either the given duration of time or the given fraction of the total duration, whichever is less
+	#
+	# ys: wave array
+	# framerate: int frames per second
+	# denom: float fraction of the segment to taper
+	# duration: float duration of the taper in seconds
+	#
+	# return: wave array
+
+    # a fixed fraction of the segment
+    n = len(ys)
+    k1 = n // denom
+
+    # a fixed duration of time
+    k2 = int(duration * framerate)
+
+    k = min(k1, k2)
+
+    w1 = np.linspace(0, 1, k)
+    w2 = np.ones(n - 2*k)
+    w3 = np.linspace(1, 0, k)
+
+    window = np.concatenate((w1, w2, w3))
+    return ys * window
