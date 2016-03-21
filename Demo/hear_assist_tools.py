@@ -1,7 +1,3 @@
-import array
-import copy
-import math
-
 import numpy as np 
 import matplotlib.pyplot as pyplot
 
@@ -10,17 +6,19 @@ import scipy.stats
 import scipy.fftpack
 import struct
 import subprocess
-from fractions import gcd
 
+from fractions import gcd
 from wave import open as open_wave
 
 import warnings
-
 try:
     from IPython.display import Audio
 except:
-    warnings.warn("Can't import Audio from IPython.display; "
-                  "Wave.make_audio() will not work.")
+    warnings.warn("Can't import Audio from IPython.display; Wave.make_audio() will not work.")
+
+import array
+import copy
+import math
 
 #################################################################################################
 
