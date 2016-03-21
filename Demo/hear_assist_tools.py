@@ -197,7 +197,7 @@ class Wave:
 		self.framerate = self.framerate * factor
 		self.ts = np.arange(len(self.ys)) / self.framerate
 
-############################################################################
+	############################################################################
 
 	def plot(self):
 		# plots the wave
