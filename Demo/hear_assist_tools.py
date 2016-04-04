@@ -1,4 +1,5 @@
 import numpy as np 
+import matplotlib
 import matplotlib.pyplot as pyplot
 
 import scipy
@@ -160,9 +161,11 @@ class Wave:
 		#
 		# return: Spectrum
 
-		n = len(self.ys)
-		d = 1 / float(self.framerate)
+		n = len(self.ys)					# number of samples
+		d = 1 / float(self.framerate)		# inverse of the framerate, which is the time between samples
 
+		# each value in hs corresponds to a frequency compenent -- its magnitude is proportional to the amplitude
+		# of the corresponding component, its angle is the phase offset.
 		if full:
 			hs = np.fft.fft(self.ys)
 			fs = np.fft.fftfreq(n, d)
@@ -171,6 +174,44 @@ class Wave:
 			fs = np.fft.rfftfreq(n, d)
 
 		return Spectrum(hs, fs, self.framerate, full)
+
+	def window(self, window):
+		# apply a window to the wave
+		#
+		# window: sequence of multipliers that are the same length as self.ys
+
+		self.ys *= window
+
+	def make_spectrogram(self, seg_length=512.0):
+		# computes the spectrogram of the wave
+		#
+		# seg_length: number of samples in each segment
+		# win_flag: boolean, whether to apply hamming window to each segment
+		#
+		# return: Spectrogram
+
+		window = np.hamming(seg_length)
+
+		i = 0
+		j = seg_length
+		step = seg_length / 2
+
+		# map from time to spectrum   
+		spec_map = {}
+
+		while j < len(self.ys):
+			segment = self.slice(i, j)
+			segment.ys *= window
+
+			# the nominal time for this segment is the midpoint
+			t = (segment.start + segment.end) / 2
+			spectrum = segment.make_spectrum()
+			spec_map[t] = spectrum
+
+			i += step
+			j += step
+
+		return Spectrogram(spec_map, seg_length)
 
 	####################################################################
 
@@ -206,6 +247,8 @@ class Wave:
 
 		#pyplot.plot(self.ys)
 		pyplot.plot(time, self.ys, color='#5F9EA0')
+		pyplot.xlabel('Time(s)')
+		pyplot.ylabel('Amplitude')
 		pyplot.show()
 
 	def make_audio(self):
@@ -223,7 +266,7 @@ class _SpectrumParent:
 	def __init__(self, hs, fs, framerate, full=False):
 		# initializes the Spectrum
 		#
-		# hs: array of amplitudes (real of complex)
+		# hs: array of amplitudes (real or complex)
 		# fs: array of frequencies
 		# framerate: frames per second
 		# full: boolean to indicate full or real FFT
@@ -327,6 +370,75 @@ class Spectrum(_SpectrumParent):
 			ys = np.fft.irfft(self.hs)
 
 		return Wave(ys, framerate=self.framerate)
+
+#################################################################################################
+
+
+class Spectrogram:
+	# represents the spectrum of a signal over time
+
+	def __init__(self, spec_map, seg_length):
+		# initialize the spectrogram
+		#
+		# spec_map: map from float time to spectrum
+		# seg_length: number of samples in each segment
+
+		self.spec_map = spec_map
+		self.seg_length = seg_length
+
+	def times(self):
+		# sorted sequence of times
+		#
+		# return: sequence of float times in seconds
+
+		ts = sorted(iter(self.spec_map))
+		return ts
+
+	def any_spectrum(self):
+		# returns an arbitrary spectrum from the spectrogram
+
+		index = next(iter(self.spec_map))
+		return self.spec_map[index]
+
+	def frequencies(self):
+		# sequence of frequencies
+		#
+		# return: sequence of float frequencies in Hz
+
+		fs = self.any_spectrum().fs
+		return fs
+
+	def plot(self, high=None):
+		# make a psuedocolor plot
+		# 
+		# high: highest frequency component to plot
+
+		fs = self.frequencies()
+		i = None if high is None else find_index(high, fs)
+		fs = fs[:i]
+		ts = self.times()
+
+		# make the array
+		size = len(fs), len(ts)
+		array = np.zeros(size, dtype=np.float)
+
+		# copy amplitude from each spectrum into a column of the array
+		for j, t in enumerate(ts):
+			spectrum = self.spec_map[t]
+			array[:, j] = spectrum.amps[:i]
+
+		X, Y = np.meshgrid(ts, fs)
+		Z = array
+
+		# x_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
+		# axes = pyplot.gca()
+		# axes.xaxis.set_major_formatter(x_formatter)
+
+		# pyplot.pcolormesh(X, Y, Z)
+		# pyplot.show()
+
+		pyplot.specgram(array, NFFT=self.seg_length, Fs=2, noverlap=128, cmap=pyplot.cm.gist_heat)
+		pyplot.show()
 
 #################################################################################################
 
