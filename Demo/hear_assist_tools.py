@@ -241,12 +241,14 @@ class Wave:
 
 	############################################################################
 
-	def plot(self):
+	def plot(self, title=None):
 		# plots the wave
 
 		time = np.linspace(self.start, self.duration, len(self.ys))	# get seconds
 
 		pyplot.figure(figsize=(16,4))
+		if title != None:
+			pyplot.title(title)
 		pyplot.plot(time, self.ys, color='#5F9EA0')
 		pyplot.xlabel('Time(s)')
 		pyplot.ylabel('Amplitude')
@@ -304,7 +306,7 @@ class _SpectrumParent:
 
 		return fs[i:j], amps[i:j]
 
-	def plot(self, high=None):
+	def plot(self, title=None, high=None):
 		# plots amplitude vs frequency
 		#
 		# if full spectrum, ignore low and high
@@ -315,6 +317,10 @@ class _SpectrumParent:
 			fs, amps = self.render_full(high)
 
 			pyplot.figure(figsize=(16,4))
+			
+			if title != None:
+				pyplot.title(title)
+			
 			pyplot.plot(fs, amps, color='#5F9EA0')
 			pyplot.xlabel('Frequency(Hz)')
 			pyplot.ylabel('Amplitude')
@@ -323,6 +329,10 @@ class _SpectrumParent:
 			i = None if high is None else find_index(high, self.fs)
 
 			pyplot.figure(figsize=(16,4))
+			
+			if title != None:
+				pyplot.title(title)
+			
 			pyplot.plot(self.fs[:i], self.amps[:i], color='#5F9EA0')
 			pyplot.xlabel('Frequency(Hz)')
 			pyplot.ylabel('Amplitude')
@@ -417,7 +427,7 @@ class Spectrogram:
 		fs = self.any_spectrum().fs
 		return fs
 
-	def plot(self, high=None):
+	def plot(self, title=None, high=None):
 		# make a psuedocolor plot
 		# 
 		# high: highest frequency component to plot
@@ -431,6 +441,10 @@ class Spectrogram:
 		noverlap = self.seg_length / 2			# the number of samples that each segment overlaps
 
 		pyplot.figure(figsize=(16,4))
+
+		if title != None:
+			pyplot.title(title)
+
 		# pyplot.xticks(np.arange(math.floor(wave.start), math.ceil(wave.end)+1, 1.0))
 		pyplot.specgram(wave.ys, NFFT=NFFT, Fs=Fs, noverlap=noverlap, cmap=pyplot.cm.bone)
 		pyplot.xlabel('Time(s)')
