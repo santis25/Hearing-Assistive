@@ -1,6 +1,7 @@
 import numpy as np 
 import matplotlib
 import matplotlib.pyplot as pyplot
+import collections
 
 import scipy
 import scipy.stats
@@ -182,7 +183,7 @@ class Wave:
 
 		self.ys *= window
 
-	def make_spectrogram(self, seg_length=512.0):
+	def make_spectrogram(self, seg_length):
 		# computes the spectrogram of the wave
 		#
 		# seg_length: number of samples in each segment
@@ -245,7 +246,7 @@ class Wave:
 
 		time = np.linspace(self.start, self.duration, len(self.ys))	# get seconds
 
-		#pyplot.plot(self.ys)
+		pyplot.figure(figsize=(16,4))
 		pyplot.plot(time, self.ys, color='#5F9EA0')
 		pyplot.xlabel('Time(s)')
 		pyplot.ylabel('Amplitude')
@@ -312,11 +313,19 @@ class _SpectrumParent:
 	
 		if self.full:
 			fs, amps = self.render_full(high)
+
+			pyplot.figure(figsize=(16,4))
 			pyplot.plot(fs, amps, color='#5F9EA0')
+			pyplot.xlabel('Frequency(Hz)')
+			pyplot.ylabel('Amplitude')
 			pyplot.show()
 		else:
 			i = None if high is None else find_index(high, self.fs)
+
+			pyplot.figure(figsize=(16,4))
 			pyplot.plot(self.fs[:i], self.amps[:i], color='#5F9EA0')
+			pyplot.xlabel('Frequency(Hz)')
+			pyplot.ylabel('Amplitude')
 			pyplot.show()
 
 ####################################################################################
@@ -354,7 +363,7 @@ class Spectrum(_SpectrumParent):
 		# factor: multiplied to magnitude
 
 		fs = abs(self.fs)
-		indices = (low_cutoff < fs) & f(fs < high_cutoff)
+		indices = (low_cutoff < fs) & (fs < high_cutoff)
 		self.hs[indices] *= factor
 
 	################################################################################
@@ -413,32 +422,48 @@ class Spectrogram:
 		# 
 		# high: highest frequency component to plot
 
-		fs = self.frequencies()
-		i = None if high is None else find_index(high, fs)
-		fs = fs[:i]
-		ts = self.times()
+		wave = self.make_wave()	
 
-		# make the array
-		size = len(fs), len(ts)
-		array = np.zeros(size, dtype=np.float)
+		dt = float(self.seg_length) / len(wave)
+		# Fs = int(1.0/dt) * 10 * pow(2, math.log(self.seg_length, 2) - 8)		# the sampling frequency (samples per unit time)
+		Fs = int(1.0/dt)
+		NFFT = int(self.seg_length)
+		noverlap = self.seg_length / 2			# the number of samples that each segment overlaps
 
-		# copy amplitude from each spectrum into a column of the array
-		for j, t in enumerate(ts):
-			spectrum = self.spec_map[t]
-			array[:, j] = spectrum.amps[:i]
-
-		X, Y = np.meshgrid(ts, fs)
-		Z = array
-
-		# x_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
-		# axes = pyplot.gca()
-		# axes.xaxis.set_major_formatter(x_formatter)
-
-		# pyplot.pcolormesh(X, Y, Z)
-		# pyplot.show()
-
-		pyplot.specgram(array, NFFT=self.seg_length, Fs=2, noverlap=128, cmap=pyplot.cm.gist_heat)
+		pyplot.figure(figsize=(16,4))
+		# pyplot.xticks(np.arange(math.floor(wave.start), math.ceil(wave.end)+1, 1.0))
+		pyplot.specgram(wave.ys, NFFT=NFFT, Fs=Fs, noverlap=noverlap, cmap=pyplot.cm.bone)
+		pyplot.xlabel('Time(s)')
+		pyplot.ylabel('Frequency(Hz)')
 		pyplot.show()
+
+	def make_wave(self):
+		# inverts the spectrogram and returns a wave
+		#
+		# return: Wave
+
+		res = []
+		for t, spectrum in sorted(self.spec_map.iteritems()):
+			wave = spectrum.make_wave()
+			n = len(wave)
+
+			window = 1 / np.hamming(n)
+			wave.window(window)
+
+			i = wave.find_index(t)
+			start = i - (n // 2)
+			end = start + n
+			res.append((start, end, wave))
+
+		starts, ends, waves = zip(*res)
+		low = min(starts)
+		high = max(ends)
+
+		ys = np.zeros(high - low, np.float)
+		for start, end, wave in res:
+			ys[start:end] = wave.ys
+
+		return Wave(ys, framerate=wave.framerate)
 
 #################################################################################################
 
