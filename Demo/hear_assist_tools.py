@@ -1,8 +1,5 @@
-import array
-import copy
-import math
-
 import numpy as np 
+import matplotlib
 import matplotlib.pyplot as pyplot
 
 import scipy
@@ -10,17 +7,21 @@ import scipy.stats
 import scipy.fftpack
 import struct
 import subprocess
-from fractions import gcd
 
+from fractions import gcd
 from wave import open as open_wave
 
 import warnings
-
 try:
     from IPython.display import Audio
 except:
-    warnings.warn("Can't import Audio from IPython.display; "
-                  "Wave.make_audio() will not work.")
+    warnings.warn("Can't import Audio from IPython.display; Wave.make_audio() will not work.")
+
+import array
+import copy
+import math
+
+#################################################################################################
 
 
 def read_wave(filename='sound.wav'):
@@ -34,12 +35,6 @@ def read_wave(filename='sound.wav'):
     nframes = fp.getnframes()		# number of audio frames
     sampwidth = fp.getsampwidth()	# sample width in bytes
     framerate = fp.getframerate()	# sampling frequency
-
-    #TEST
-    # print "nchannels: ", nchannels
-    # print "nframes: ", nframes
-    # print "sampwidth: ", sampwidth
-    # print "framerate: ", framerate
     
     z_str = fp.readframes(nframes)	# reads and returns at most nframes of audio as a string of bytes
     
@@ -75,7 +70,7 @@ def find_index(x, xs):
 
 	return int(i)
 
-########################################################################
+###########################################################################################
 
 
 class Wave:
@@ -91,19 +86,10 @@ class Wave:
 		self.ys = np.asanyarray(ys)
 		self.framerate = framerate if framerate is not None else 11025
 
-		# if framerate is None:
-		# 	self.framerate = 11025
-		# else:
-		# 	self.framerate = framerate
-
-		#self.ts = np.arange(len(ys)) / self.framerate
-
 		if ts is None:
 			self.ts = np.arange(len(ys)) / float(self.framerate)
 		else:
 			self.ts = np.asanyarray(ts)
-
-    ###################################################################
 
    	def copy(self):
         # makes a copy.
@@ -158,11 +144,6 @@ class Wave:
 
 		j = None if duration is None else self.find_index(start + duration)
 
-	    # if duration is None:
-	    # 	j = None
-	    # else:
-	  		# j = self.find_index(start + duration)
-
 	    return self.slice(i, j)
 
 	def slice(self, i, j):
@@ -180,9 +161,11 @@ class Wave:
 		#
 		# return: Spectrum
 
-		n = len(self.ys)
-		d = 1 / float(self.framerate)
+		n = len(self.ys)					# number of samples
+		d = 1 / float(self.framerate)		# inverse of the framerate, which is the time between samples
 
+		# each value in hs corresponds to a frequency compenent -- its magnitude is proportional to the amplitude
+		# of the corresponding component, its angle is the phase offset.
 		if full:
 			hs = np.fft.fft(self.ys)
 			fs = np.fft.fftfreq(n, d)
@@ -191,6 +174,44 @@ class Wave:
 			fs = np.fft.rfftfreq(n, d)
 
 		return Spectrum(hs, fs, self.framerate, full)
+
+	def window(self, window):
+		# apply a window to the wave
+		#
+		# window: sequence of multipliers that are the same length as self.ys
+
+		self.ys *= window
+
+	def make_spectrogram(self, seg_length=512.0):
+		# computes the spectrogram of the wave
+		#
+		# seg_length: number of samples in each segment
+		# win_flag: boolean, whether to apply hamming window to each segment
+		#
+		# return: Spectrogram
+
+		window = np.hamming(seg_length)
+
+		i = 0
+		j = seg_length
+		step = seg_length / 2
+
+		# map from time to spectrum   
+		spec_map = {}
+
+		while j < len(self.ys):
+			segment = self.slice(i, j)
+			segment.ys *= window
+
+			# the nominal time for this segment is the midpoint
+			t = (segment.start + segment.end) / 2
+			spectrum = segment.make_spectrum()
+			spec_map[t] = spectrum
+
+			i += step
+			j += step
+
+		return Spectrogram(spec_map, seg_length)
 
 	####################################################################
 
@@ -217,7 +238,7 @@ class Wave:
 		self.framerate = self.framerate * factor
 		self.ts = np.arange(len(self.ys)) / self.framerate
 
-############################################################################
+	############################################################################
 
 	def plot(self):
 		# plots the wave
@@ -226,6 +247,8 @@ class Wave:
 
 		#pyplot.plot(self.ys)
 		pyplot.plot(time, self.ys, color='#5F9EA0')
+		pyplot.xlabel('Time(s)')
+		pyplot.ylabel('Amplitude')
 		pyplot.show()
 
 	def make_audio(self):
@@ -237,57 +260,13 @@ class Wave:
 ############################################################################
 
 
-def normalize(ys, amp=1.0):
-	# normalize a wave array so the maximum amplitude is +amp or -amp
-	#
-	# ys: wave array
-	# amp: max amplitude (pos or neg) in result
-	#
-	# return: wave array
-    
-    high = abs(max(ys))
-    low = abs(min(ys))
-
-    return amp * ys / max(high, low)
-
-def apodize(ys, framerate, denom=20, duration=0.1):
-	# tapers the amplitude at the beginning and end of the signal.
-	#
-	# tapers either the given duration of time or the given fraction of the total duration, whichever is less
-	#
-	# ys: wave array
-	# framerate: int frames per second
-	# denom: float fraction of the segment to taper
-	# duration: float duration of the taper in seconds
-	#
-	# return: wave array
-
-    # a fixed fraction of the segment
-    n = len(ys)
-    k1 = n // denom
-
-    # a fixed duration of time
-    k2 = int(duration * framerate)
-
-    k = min(k1, k2)
-
-    w1 = np.linspace(0, 1, k)
-    w2 = np.ones(n - 2*k)
-    w3 = np.linspace(1, 0, k)
-
-    window = np.concatenate((w1, w2, w3))
-    return ys * window
-
-##############################################################################
-
-
 class _SpectrumParent:
 	# contains code common to Spectrum
 
 	def __init__(self, hs, fs, framerate, full=False):
 		# initializes the Spectrum
 		#
-		# hs: array of amplitudes (real of complex)
+		# hs: array of amplitudes (real or complex)
 		# fs: array of frequencies
 		# framerate: frames per second
 		# full: boolean to indicate full or real FFT
@@ -351,8 +330,6 @@ class Spectrum(_SpectrumParent):
 
 		return len(self.hs)
 
-	################################################################################
-
 	def low_pass(self, cutoff, factor=0):
 		# attenuate frequencies above the cutoff
 		#
@@ -393,3 +370,116 @@ class Spectrum(_SpectrumParent):
 			ys = np.fft.irfft(self.hs)
 
 		return Wave(ys, framerate=self.framerate)
+
+#################################################################################################
+
+
+class Spectrogram:
+	# represents the spectrum of a signal over time
+
+	def __init__(self, spec_map, seg_length):
+		# initialize the spectrogram
+		#
+		# spec_map: map from float time to spectrum
+		# seg_length: number of samples in each segment
+
+		self.spec_map = spec_map
+		self.seg_length = seg_length
+
+	def times(self):
+		# sorted sequence of times
+		#
+		# return: sequence of float times in seconds
+
+		ts = sorted(iter(self.spec_map))
+		return ts
+
+	def any_spectrum(self):
+		# returns an arbitrary spectrum from the spectrogram
+
+		index = next(iter(self.spec_map))
+		return self.spec_map[index]
+
+	def frequencies(self):
+		# sequence of frequencies
+		#
+		# return: sequence of float frequencies in Hz
+
+		fs = self.any_spectrum().fs
+		return fs
+
+	def plot(self, high=None):
+		# make a psuedocolor plot
+		# 
+		# high: highest frequency component to plot
+
+		fs = self.frequencies()
+		i = None if high is None else find_index(high, fs)
+		fs = fs[:i]
+		ts = self.times()
+
+		# make the array
+		size = len(fs), len(ts)
+		array = np.zeros(size, dtype=np.float)
+
+		# copy amplitude from each spectrum into a column of the array
+		for j, t in enumerate(ts):
+			spectrum = self.spec_map[t]
+			array[:, j] = spectrum.amps[:i]
+
+		X, Y = np.meshgrid(ts, fs)
+		Z = array
+
+		# x_formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
+		# axes = pyplot.gca()
+		# axes.xaxis.set_major_formatter(x_formatter)
+
+		# pyplot.pcolormesh(X, Y, Z)
+		# pyplot.show()
+
+		pyplot.specgram(array, NFFT=self.seg_length, Fs=2, noverlap=128, cmap=pyplot.cm.gist_heat)
+		pyplot.show()
+
+#################################################################################################
+
+
+def normalize(ys, amp=1.0):
+	# normalize a wave array so the maximum amplitude is +amp or -amp
+	#
+	# ys: wave array
+	# amp: max amplitude (pos or neg) in result
+	#
+	# return: wave array
+    
+    high = abs(max(ys))
+    low = abs(min(ys))
+
+    return amp * ys / max(high, low)
+
+def apodize(ys, framerate, denom=20, duration=0.1):
+	# tapers the amplitude at the beginning and end of the signal.
+	#
+	# tapers either the given duration of time or the given fraction of the total duration, whichever is less
+	#
+	# ys: wave array
+	# framerate: int frames per second
+	# denom: float fraction of the segment to taper
+	# duration: float duration of the taper in seconds
+	#
+	# return: wave array
+
+    # a fixed fraction of the segment
+    n = len(ys)
+    k1 = n // denom
+
+    # a fixed duration of time
+    k2 = int(duration * framerate)
+
+    k = min(k1, k2)
+
+    w1 = np.linspace(0, 1, k)
+    w2 = np.ones(n - 2*k)
+    w3 = np.linspace(1, 0, k)
+
+    window = np.concatenate((w1, w2, w3))
+    return ys * window
