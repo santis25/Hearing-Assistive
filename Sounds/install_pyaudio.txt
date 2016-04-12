@@ -1,0 +1,3 @@
+To install the PyAudio package with conda, run:
+
+conda install -c https://conda.anaconda.org/mutirri pyaudio
