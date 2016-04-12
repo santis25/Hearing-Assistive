@@ -85,7 +85,7 @@ class Wave:
 		# framerate: samples per seconds
 
 		self.ys = np.asanyarray(ys)
-		self.framerate = framerate if framerate is not None else 11025
+		self.framerate = framerate if framerate is not None else 44100	# changed from 11025
 
 		if ts is None:
 			self.ts = np.arange(len(ys)) / float(self.framerate)
@@ -286,6 +286,13 @@ class _SpectrumParent:
 
 		return np.absolute(self.hs)
 
+	@property
+	def power(self):
+	    # return a sequence of powers (read-only property)
+
+	    return self.amps**2
+	
+
 	def render_full(self, high=None):
 		# extracts amps and fs from a full spectrum
 		#
@@ -306,6 +313,7 @@ class _SpectrumParent:
 		#
 		# if full spectrum, ignore low and high
 		#
+		# title: title of the plot
 		# high: frequency to cut off at
 	
 		if self.full:
@@ -332,6 +340,47 @@ class _SpectrumParent:
 			pyplot.xlabel('Frequency(Hz)')
 			pyplot.ylabel('Amplitude')
 			pyplot.show()
+
+	def plot_power(self, title=None, high=None):
+		# plots power vs frequency
+		#
+		# title: title of the plot
+		# high: frequency to cut off at
+
+		if self.full:
+			fs, amps = self.render_full(high)
+			powers = amps**2
+
+			pyplot.figure(figsize=(16,4))
+
+			if title != None:
+				pyplot.title(title)
+
+			pyplot.plot(fs, powers, color='#5F9EA0')
+			pyplot.xlabel('Frequency(Hz)')
+			pyplot.ylabel('Power')
+			pyplot.show()
+		else:
+			i = None if high is None else find_index(high, self.fs)
+
+			pyplot.figure(figsize=(16,4))
+			
+			if title != None:
+				pyplot.title(title)
+			
+			pyplot.plot(self.fs[:i], self.power[:i], color='#5F9EA0')
+			pyplot.xlabel('Frequency(Hz)')
+			pyplot.ylabel('Power')
+			pyplot.show()
+
+	def peaks(self):
+		# find the highest amplitude peaks and their frequencies
+		#
+		# return: sorted list of (amplitude, frequency) pairs
+
+		peaks = zip(self.amps, self.fs)
+		peaks.sort(reverse=True)
+		return peaks
 
 ####################################################################################
 
@@ -387,6 +436,9 @@ class Spectrum(_SpectrumParent):
 
 #################################################################################################
 
+
+
+#################################################################################################
 
 class Spectrogram:
 	# represents the spectrum of a signal over time
