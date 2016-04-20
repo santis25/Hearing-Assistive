@@ -10,7 +10,7 @@
 
 %for loop for running through all sound files 3 THINGS TO CHANGE
 clear all; close all; clc;
-fnames = dir('../../Sound_test/Sounds/School_Fire_Alarm_Vars/*.wav'); %________CHANGE
+fnames = dir('../../Sound_test/Sounds/Dog_Kennel_Vars/*.wav'); %________CHANGE
 numfids = length(fnames);
 for id = 1:numfids
 %____EOFor loop setup
@@ -27,7 +27,7 @@ for id = 1:numfids
     L = 22;                 % cepstral sine lifter parameter
     LF = 300;               % lower frequency limit (Hz)
     HF = 2000;              % upper frequency limit (Hz)
-    fpath = '../../Sound_test/Sounds/School_Fire_Alarm_Vars/'; %_____________CHANGE
+    fpath = '../../Sound_test/Sounds/Cow_Moos_Vars/'; %_____________CHANGE
     wav_file = strcat(fpath,fnames(id).name);  % input audio filename
 
 
@@ -108,7 +108,7 @@ name_size = name_size - 4; %index filename minus file extension
 filename = wav_file(1:name_size);
 mat_ex = '.mat';
 filename = strcat(filename,mat_ex);
-path = './MFCC_data/School_Fire_Alarm_Mat/';       %_________CHANGE
+path = './MFCC_data/Cow_Moos_Mat/';       %_________CHANGE
 path = strcat(path, filename);
 save(path, 'MFCCs')
 
