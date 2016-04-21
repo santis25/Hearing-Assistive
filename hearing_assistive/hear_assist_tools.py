@@ -176,6 +176,17 @@ class Wave:
 
 		return Spectrum(hs, fs, self.framerate, full)
 
+	def make_dct(self):
+		# compute the discrte cosine transform of this wave
+		#
+		# return: Dct
+
+		n = len(self.ys)
+		hs = scipy.fftpack.dct(self.ys, type=2)
+		fs = (0.5 + np.arange(n)) / 2
+
+		return Dct(hs, fs, self.framerate)
+
 	def make_spectrogram(self, seg_length, win_flag=True):
 		# computes the spectrogram of the wave
 		#
@@ -420,6 +431,84 @@ class Spectrum(_SpectrumParent):
 		indices = (low_cutoff < fs) & (fs < high_cutoff)
 		self.hs[indices] *= factor
 
+	def freqToMel(self, freq):
+	    # convert a frequency value to its Mel scale value
+
+	    return 1127 * math.log(1 + freq / 700.0)
+
+	def melToFreq(self, mel):
+	    # convert a Mel scale value to its frequency value 
+
+	    return 700 * (math.exp(mel / 1127.0 - 1))
+
+	def melFilterBank(self, minHz, maxHz, numFilters, blocksize):
+	    # compute the mel-spaced filterbank that will be applied to a power spectrum.
+	    #
+	    # minHz: lower frequency bound
+	    # maxHz: upper frequency bound
+	    # numFilters: the number of triangular filters (which is the number of coefficients)
+	    # blocksize: the size of each filter (equal to (seg_length / 2) + 1)
+	    #
+	    # return: a matrix of triangular filters, each of length blocksize
+
+	    minMel = self.freqToMel(minHz)
+	    maxMel = self.freqToMel(maxHz)
+
+	    filterMatrix = np.zeros((numFilters, blocksize))  # create matrix for triangular filters
+
+	    # our range needs (numFilters + 2) linearly spaced points, each filter requires three points
+	    melRange = np.array(xrange(numFilters + 2)) 
+
+	    # calculate linearly spaced mel values between minMel and maxMel 
+	    melCenterFilters = melRange * (maxMel - minMel) / (numFilters + 1) + minMel 
+
+	    aux = np.log(1 + 1000.0 / 700.0) / 1000.0
+	    aux = (np.exp(melCenterFilters * aux) - 1) / 22050
+	    aux = 0.5 + 700 * blocksize * aux
+	    aux = np.floor(aux)
+	    centerIndex = np.array(aux, int)   # each index represents the center of each triangular filter
+
+	    for i in xrange(numFilters):
+	        start, center, end = centerIndex[i:i + 3]
+	        k1 = np.float32(center - start)
+	        k2 = np.float32(end - center)
+	        up = (np.array(xrange(start, center)) - start) / k1
+	        down = (end - np.array(xrange(center, end))) / k2
+	        filterMatrix[i][start:center] = up
+	        filterMatrix[i][center:end] = down
+
+	    return filterMatrix.transpose()
+
+	def get_mfcc(self, minHz=20, maxHz=22050, numFilters=26, blocksize=883):
+		# compute the MFCCs of the given spectrum
+		#
+		# minHz: lower frequency bound
+	    # maxHz: upper frequency bound
+	    # numFilters: the number of triangular filters (which is the number of coefficients)
+	    # blocksize: the size of each filter (equal to (segment_length / 2) + 1)
+		# 
+		# by default, assume the given spectrum has a segment_length of 1764 (which is 40ms at 44100fps)
+		# 
+		# return: feature vector (1D array of length numFilters)
+
+		hs = self.hs    # length is equal to ((segment_length/2)+1) (result of FFT)
+		fs = self.fs
+		framerate = self.framerate
+		full = self.full
+
+		powers = self.power   # get spectrum power values
+
+		# create the mel-filterbank, shape of the filterbank is (blocksize, numFilters)
+		filterbank = self.melFilterBank(minHz, maxHz, numFilters, blocksize)  
+
+		filtered_spectrum = np.dot(powers, filterbank)   # shape of filtered_spectrum is a 1D array of length numFilters
+
+		log_spectrum = np.log(filtered_spectrum)   # take the logarithm of each of the filterbank energies 
+
+		mfcc =  scipy.fftpack.dct(log_spectrum, type=2)  # take the DCT of these log filterbank energies
+
+		return mfcc    
+
 	################################################################################
 
 	def make_wave(self):
@@ -434,9 +523,30 @@ class Spectrum(_SpectrumParent):
 
 		return Wave(ys, framerate=self.framerate)
 
+
 #################################################################################################
 
+# TODO
+class Dct(_SpectrumParent):
+	# represents the spectrum of a signal using discrete cosine transform.
 
+	@property
+	def amps(self):
+		# returns a sequence of amplitudes (read-only property)
+		# NOTE: for DCT, amps are positive and negative real values
+
+	    return self.hs
+
+	def make_wave(self):
+		# transforms to the time domain
+		#
+		# return: Wave
+
+		n = len(self.hs)
+		ys = scipy.fftpack.idct(self.hs, type=2) / 2 / n
+
+		return Wave(ys, framerate=self.framerate)
+	
 
 #################################################################################################
 
@@ -473,6 +583,29 @@ class Spectrogram:
 
 		fs = self.any_spectrum().fs
 		return fs
+
+	def mfcc(self, minHz=20, maxHz=22050, numFilters=26, blocksize=883):
+		# compute the MFCCs of the given set of spectrums
+		#
+		# minHz: lower frequency bound
+	    # maxHz: upper frequency bound
+	    # numFilters: the number of triangular filters (which is the number of coefficients per spectrum)
+	    # blocksize: the size of each filter (equal to (segment_length / 2) + 1)
+		# 
+		# by default, assume each spectrum has a segment_length of 1764 (which is 40ms at 44100fps)
+		# 
+		# return: feature matrix (2D array of numFilters by number of spectrums (aka length of spec_map))
+
+		mfcc_matrix = []
+		for t, spectrum in sorted(self.spec_map.iteritems()):
+			sub_mfcc = spectrum.get_mfcc(minHz, maxHz, numFilters, blocksize)   # get the mfcc of each spectrum in spec_map
+			mfcc_matrix.append(sub_mfcc)
+
+		mfcc_matrix = np.asarray(mfcc_matrix)    # typecast as numpy array
+
+		return mfcc_matrix    # (number of spectrums, numFilters) feature matrix 
+
+
 
 	def plot(self, title=None, high=None):
 		# make a psuedocolor plot
