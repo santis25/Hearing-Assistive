@@ -205,7 +205,7 @@ class Wave:
 		# map from time to spectrum   
 		spec_map = {}
 
-		while j < len(self.ys):
+		while j <= len(self.ys):
 			segment = self.slice(i, j)
 			
 			if win_flag:
@@ -249,6 +249,8 @@ class Wave:
 
 	def plot(self, title=None):
 		# plots the wave
+		#
+		# title: title of the plot
 
 		time = np.linspace(self.start, self.duration, len(self.ys))	# get seconds
 
@@ -526,7 +528,6 @@ class Spectrum(_SpectrumParent):
 
 #################################################################################################
 
-# TODO
 class Dct(_SpectrumParent):
 	# represents the spectrum of a signal using discrete cosine transform.
 
@@ -584,12 +585,13 @@ class Spectrogram:
 		fs = self.any_spectrum().fs
 		return fs
 
-	def mfcc(self, minHz=20, maxHz=22050, numFilters=26, blocksize=883):
+	def mfcc(self, minHz=20, maxHz=22050, numFilters=26, numCoefficients=13, blocksize=883):
 		# compute the MFCCs of the given set of spectrums
 		#
 		# minHz: lower frequency bound
 	    # maxHz: upper frequency bound
 	    # numFilters: the number of triangular filters (which is the number of coefficients per spectrum)
+	    # numCoefficients: the number of coefficients taken from the filters
 	    # blocksize: the size of each filter (equal to (segment_length / 2) + 1)
 		# 
 		# by default, assume each spectrum has a segment_length of 1764 (which is 40ms at 44100fps)
@@ -599,17 +601,18 @@ class Spectrogram:
 		mfcc_matrix = []
 		for t, spectrum in sorted(self.spec_map.iteritems()):
 			sub_mfcc = spectrum.get_mfcc(minHz, maxHz, numFilters, blocksize)   # get the mfcc of each spectrum in spec_map
+			# only include the coefficients between the range specified by numCoefficients, starting with the second coefficient
+			sub_mfcc = sub_mfcc[1:numCoefficients+1]   
 			mfcc_matrix.append(sub_mfcc)
 
 		mfcc_matrix = np.asarray(mfcc_matrix)    # typecast as numpy array
 
 		return mfcc_matrix    # (number of spectrums, numFilters) feature matrix 
 
-
-
 	def plot(self, title=None, high=None):
 		# make a psuedocolor plot
 		# 
+		# title: title of the plot
 		# high: highest frequency component to plot
 
 		wave = self.make_wave()	
