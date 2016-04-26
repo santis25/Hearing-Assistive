@@ -23,7 +23,23 @@ import copy
 import math
 
 #################################################################################################
+#
+# TABLE OF CONTENTS:
+#
+# 1.  Global Functions
+# 2.  Wave Class
+# 3.  _SpectrumParent Class
+# 4.  Spectrum Class
+# 5.  Dct Class
+# 6.  Spectrogram Class
+# 
+#################################################################################################
 
+#################################################################################################
+#
+# 1.  GLOBAL FUNCTIONS
+#
+#################################################################################################
 
 def read_wave(filename='sound.wav'):
     # Reads a wave file
@@ -71,8 +87,62 @@ def find_index(x, xs):
 
 	return int(i)
 
-###########################################################################################
+def unbias(ys):
+	# shifts a wave array so it has mean 0
+	#
+	# ys: wave array
+	#
+	# return: wave array
 
+	return ys - ys.mean()
+
+def normalize(ys, amp=1.0):
+	# normalize a wave array so the maximum amplitude is +amp or -amp
+	#
+	# ys: wave array
+	# amp: max amplitude (pos or neg) in result
+	#
+	# return: wave array
+    
+    high = abs(max(ys))
+    low = abs(min(ys))
+
+    return amp * ys / max(high, low)
+
+def apodize(ys, framerate, denom=20, duration=0.1):
+	# tapers the amplitude at the beginning and end of the signal.
+	#
+	# tapers either the given duration of time or the given fraction of the total duration, whichever is less
+	#
+	# ys: wave array
+	# framerate: int frames per second
+	# denom: float fraction of the segment to taper
+	# duration: float duration of the taper in seconds
+	#
+	# return: wave array
+
+    # a fixed fraction of the segment
+    n = len(ys)
+    k1 = n // denom
+
+    # a fixed duration of time
+    k2 = int(duration * framerate)
+
+    k = min(k1, k2)
+
+    w1 = np.linspace(0, 1, k)
+    w2 = np.ones(n - 2*k)
+    w3 = np.linspace(1, 0, k)
+
+    window = np.concatenate((w1, w2, w3))
+    return ys * window
+
+
+###########################################################################################
+#
+# 2.  WAVE CLASS
+#
+###########################################################################################
 
 class Wave:
 	# represents a discrete-time waveform
@@ -116,8 +186,6 @@ class Wave:
 		# return: float duration in seconds
 
 	    return len(self.ys) / float(self.framerate)
-
-	#####################################################################
 
 	def find_index(self, t):
 		# find the index corresponding to a given time
@@ -220,8 +288,6 @@ class Wave:
 
 		return Spectrogram(spec_map, seg_length)
 
-	####################################################################
-
 	def normalize(self, amp=1.0):
 		# normalize the signal to the given amplitude
 		#
@@ -245,8 +311,6 @@ class Wave:
 		self.framerate = self.framerate * factor
 		self.ts = np.arange(len(self.ys)) / self.framerate
 
-	############################################################################
-
 	def plot(self, title=None):
 		# plots the wave
 		#
@@ -269,7 +333,10 @@ class Wave:
 		return audio
 
 ############################################################################
-
+#
+# 3.  _SPECTRUMPARENT CLASS
+#
+############################################################################
 
 class _SpectrumParent:
 	# contains code common to Spectrum
@@ -396,7 +463,10 @@ class _SpectrumParent:
 		return peaks
 
 ####################################################################################
-
+#
+# 4.  SPECTRUM CLASS
+#
+####################################################################################
 
 class Spectrum(_SpectrumParent):
 	# represents the spectrum of a signal
@@ -511,8 +581,6 @@ class Spectrum(_SpectrumParent):
 
 		return mfcc    
 
-	################################################################################
-
 	def make_wave(self):
 		# transforms to the time domain
 		#
@@ -526,6 +594,10 @@ class Spectrum(_SpectrumParent):
 		return Wave(ys, framerate=self.framerate)
 
 
+#################################################################################################
+#
+# 5.  DCT CLASS
+#
 #################################################################################################
 
 class Dct(_SpectrumParent):
@@ -549,6 +621,10 @@ class Dct(_SpectrumParent):
 		return Wave(ys, framerate=self.framerate)
 	
 
+#################################################################################################
+#
+# 6.  SPECTROGRAM CLASS
+#
 #################################################################################################
 
 class Spectrogram:
@@ -661,47 +737,3 @@ class Spectrogram:
 			ys[start:end] = wave.ys
 
 		return Wave(ys, framerate=wave.framerate)
-
-#################################################################################################
-
-
-def normalize(ys, amp=1.0):
-	# normalize a wave array so the maximum amplitude is +amp or -amp
-	#
-	# ys: wave array
-	# amp: max amplitude (pos or neg) in result
-	#
-	# return: wave array
-    
-    high = abs(max(ys))
-    low = abs(min(ys))
-
-    return amp * ys / max(high, low)
-
-def apodize(ys, framerate, denom=20, duration=0.1):
-	# tapers the amplitude at the beginning and end of the signal.
-	#
-	# tapers either the given duration of time or the given fraction of the total duration, whichever is less
-	#
-	# ys: wave array
-	# framerate: int frames per second
-	# denom: float fraction of the segment to taper
-	# duration: float duration of the taper in seconds
-	#
-	# return: wave array
-
-    # a fixed fraction of the segment
-    n = len(ys)
-    k1 = n // denom
-
-    # a fixed duration of time
-    k2 = int(duration * framerate)
-
-    k = min(k1, k2)
-
-    w1 = np.linspace(0, 1, k)
-    w2 = np.ones(n - 2*k)
-    w3 = np.linspace(1, 0, k)
-
-    window = np.concatenate((w1, w2, w3))
-    return ys * window
