@@ -225,6 +225,27 @@ class Wave:
 	    ts = self.ts[i:j].copy()
 	    return Wave(ys, ts, self.framerate)
 
+	def partition(self, seg_length=2.4):
+	    # partition the wave into segments
+	    #
+	    # seg_length: length of each segment in seconds
+	    #
+	    # return: list of Wave segments
+	    
+	    i = 0
+	    j = int(seg_length * self.framerate)  # frames per segment
+	    step = int((seg_length / 2) * self.framerate)   # 50% overlap
+
+	    seg_map = []
+	    while j < len(self.ys):
+	        segment = self.slice(i, j)
+	        seg_map.append(segment)
+
+	        i += step
+	        j += step
+	        
+	    return seg_map  # list of Wave segments
+
 	def make_spectrum(self, full=False):
 		# computes the spectrum using fast fourier transform (FFT)
 		#
