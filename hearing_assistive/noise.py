@@ -14,10 +14,10 @@ def generate_intensity():
 	#
 	# return: float
 
-	noise_intensity = random.uniform(0.1, 0.5)  	# generate a random float number between 0.1 and 0.5
+	noise_intensity = random.uniform(0.01, 0.02)  	# generate a random float number between 0.1 and 0.5
 	return noise_intensity
 
-def apply_filter(wave):
+def apply_filter(wave, factor=1):
 	# randomly select a noise filter and apply
 	#
 	#
@@ -32,7 +32,7 @@ def apply_filter(wave):
 	# return: new Wave
 
 	noise_filter = random.randint(0,2)  # generate a random integer between 0 and 2, inclusive (including endpoints)
-	noise_intensity = generate_intensity()	# generate noise intensity
+	noise_intensity = factor * generate_intensity()	# generate noise intensity
 
 	# obtain corresponding noise signal
 	if noise_filter == 0:
