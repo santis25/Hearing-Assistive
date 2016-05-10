@@ -237,7 +237,7 @@ class Wave:
 	    step = int((seg_length / 2) * self.framerate)   # 50% overlap
 
 	    seg_map = []
-	    while j < len(self.ys):
+	    while j <= len(self.ys):
 	        segment = self.slice(i, j)
 	        seg_map.append(segment)
 
