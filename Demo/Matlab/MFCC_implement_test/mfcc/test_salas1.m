@@ -14,11 +14,11 @@ fnames = dir('../../Sound_test/Sounds/School_Fire_Alarm_Vars/*.wav'); %________C
 numfids = length(fnames);
 
 % Define variables
-    Tw = 60;                % analysis frame duration (ms)
-    Ts = 30;                % analysis frame shift (ms)
-    alpha = 1.0;%0.97;           % preemphasis coefficient
+    Tw = 40;                % analysis frame duration (ms)
+    Ts = 20;                % analysis frame shift (ms)
+    alpha = 0.0;%0.97;           % preemphasis coefficient
     M = 20;                 % number of filterbank channels 
-    C = 13;                 % number of cepstral coefficients
+    C = 25;                 % number of cepstral coefficients
     L = 22;                 % cepstral sine lifter parameter
     LF = 300;               % lower frequency limit (Hz)
     HF = 2000;              % upper frequency limit (Hz)
