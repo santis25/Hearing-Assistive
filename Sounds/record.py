@@ -2,14 +2,14 @@
 
 import pyaudio
 import wave
+import sys
 
-CHUNK = 1024					# fixed sample buffer size
-FORMAT = pyaudio.paInt16		# 16-bit integer format
-CHANNELS = 2					# 2 channels, left and right
-RATE = 44100					# framerate, or samples per second
-# RECORD_SECONDS = 5				# record up to 5 seconds
-RECORD_SECONDS = 2.5				# record up to 2.5 seconds
-WAVE_OUTPUT_FILENAME = "output.wav"
+CHUNK = 1024							# fixed sample buffer size
+FORMAT = pyaudio.paInt16				# 16-bit integer format
+CHANNELS = 2							# 2 channels, left and right
+RATE = 44100							# framerate, or samples per second
+RECORD_SECONDS = float(sys.argv[2])		# duration of recording in seconds
+WAVE_OUTPUT_FILENAME = "Output/" + sys.argv[1]
 
 p = pyaudio.PyAudio()	# initialize PyAudio object
 

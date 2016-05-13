@@ -1,4 +1,5 @@
 import sys
+import random
 import numpy as np
 
 from sklearn import svm
@@ -26,11 +27,14 @@ def extract_feature(wave, seg_length=0.04):
 
 	spectrogram = wave.make_spectrogram(seg_length=seg_samples)
 
-	feature = spectrogram.mfcc()   # use default parameters, *only include coefficients 2-14 (13 coefficients)
+	blocksize = (seg_samples / 2) + 1
+
+	feature = spectrogram.mfcc(blocksize=blocksize)   # use default parameters, *only include coefficients 2-14 (13 coefficients)
 	
 	return feature
 
-def generate_feature_set(wave, target, setsize=100):
+
+def generate_feature_set(wave, target, setsize=10):
 	# generate the training set (dataset and targetset) for an SVM, given a particular Wave object
 	#
 	# wave: Wave object
@@ -43,7 +47,7 @@ def generate_feature_set(wave, target, setsize=100):
 
 	assert wave.framerate == 44100
 
-	print "Training New Dataset"
+	# print "Extracting Features..."
 
 	for i in range(setsize):
 		# append clean element first
@@ -55,16 +59,16 @@ def generate_feature_set(wave, target, setsize=100):
 
 		# append elements with added noise
 		else:
-			new_wave = noise.apply_filter(wave) 	# apply a random noise filter to wave
+			new_wave = noise.apply_filter(wave) 		# apply a random noise filter to wave
 			feature = extract_feature(new_wave)		# extract mfccs from new_wave
 			# feature = extract_feature(wave)
 
 			dataset.append(feature)
 			targetset.append(target)
 
-		sys.stdout.write('#')    # show progress
+		# sys.stdout.write('#')    # show progress
 
-	print '\n'
+	# print '\n'
 
 	# convert these sets into numpy arrays
 	# dataset = np.asarray(dataset)
@@ -73,41 +77,6 @@ def generate_feature_set(wave, target, setsize=100):
 	# return a Dataset object 
 	return dataset, targetset
 
-# def init_classifier():
-# 	#
-
-# 	clf = linear_model.SGDClassifier(n_iter=100, alpha=0.01)		# linear SVM classifier with Stochastic Gradient Descent training
-
-# 	dataset = []
-# 	targetset = []
-
-# 	for i in range(100):
-# 		# add dummy set of zeros to the dataset
-# 		dummyset = np.zeros((119, 13))
-# 		dataset.append(dummyset)
-# 		targetset.append(0)
-	    
-# 	    # add dummy set of ones to the dataset
-# 		dummyset = np.ones((119, 13)) 
-# 		dataset.append(dummyset)
-# 		targetset.append(1)
-
-# 	    # add dummy set of negative ones to the dataset
-# 		dummyset = np.negative(np.ones((119, 13)))
-# 		dataset.append(dummyset)
-# 		targetset.append(2)
-	    
-# 	# convert to numpy arrays
-# 	dataset = np.asarray(dataset)
-# 	targetset = np.asarray(targetset)
-
-# 	# restructure dataset before being processed by svm
-# 	dataset = dataset.reshape((dataset.shape[0], -1))
-
-# 	# train dummyset
-# 	clf.fit(dataset, targetset)
-
-# 	return clf
 
 def init_set(size):
 	# initialize dataset and targetset 
@@ -137,6 +106,7 @@ def init_set(size):
 
 	return dataset, targetset
 
+
 def append_set(basedata, basetarget, appenddata, appendtarget):
 	# append two lists together
 	#
@@ -152,8 +122,32 @@ def append_set(basedata, basetarget, appenddata, appendtarget):
 
 	return new_basedata, new_basetarget
 
-def clf_accuracy(expected, actual):
+def generate_testset(wavelist, cases=40):
+	# generate a random testset and expected set for an SVM, given a list of Wave objects
 	#
+	# wavelist: a list of tuples (Wave object, label)
+	# cases: the number of tests to generate
+	#
+	# return: testset and expected set
+
+	testset = []
+	expected = []
+
+	for case in range(cases):
+		index = random.randint(0, len(wavelist)-1)
+
+		segment = wavelist[index][0]
+		segment = noise.apply_filter(segment)
+		feature = extract_feature(segment)
+		testset.append(feature)
+
+		expected.append(wavelist[index][1])
+
+	return testset, expected
+
+
+def clf_accuracy(expected, actual):
+	# return the accuracy percentage of a result given the actual and expected set
 
 	assert len(expected) == len(actual)
 
@@ -165,6 +159,7 @@ def clf_accuracy(expected, actual):
 	accuracy = (float(correct) / len(actual)) * 100
 
 	return accuracy
+
 
 def init_classifier(base=False, *waves):
 	#
