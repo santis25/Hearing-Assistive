@@ -14,7 +14,7 @@ def generate_intensity():
 	#
 	# return: float
 
-	noise_intensity = random.uniform(0.01, 0.02)  	# generate a random float number between 0.1 and 0.5
+	noise_intensity = random.uniform(0.0, 0.01)  	# generate a random float number between 0.1 and 0.5
 	return noise_intensity
 
 def apply_filter(wave, factor=1):

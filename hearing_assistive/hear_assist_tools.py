@@ -682,7 +682,7 @@ class Spectrogram:
 		fs = self.any_spectrum().fs
 		return fs
 
-	def mfcc(self, minHz=20, maxHz=22050, numFilters=26, numCoefficients=None, blocksize=883):
+	def mfcc(self, minHz=20, maxHz=22050, numFilters=26, numCoefficients=26, blocksize=883):
 		# compute the MFCCs of the given set of spectrums
 		#
 		# minHz: lower frequency bound
@@ -699,9 +699,7 @@ class Spectrogram:
 		for t, spectrum in sorted(self.spec_map.iteritems()):
 			sub_mfcc = spectrum.get_mfcc(minHz, maxHz, numFilters, blocksize)   # get the mfcc of each spectrum in spec_map
 			# only include the coefficients between the range specified by numCoefficients, starting with the second coefficient
-			if numCoefficients == "limit":
-				sub_mfcc = sub_mfcc[1:14]		# only include coefficients 2-14 (13 coefficients)    
-				# sub_mfcc = sub_mfcc[13:26]   	# TEST
+			sub_mfcc = sub_mfcc[0:numCoefficients]
 			mfcc_matrix.append(sub_mfcc)
 
 		mfcc_matrix = np.asarray(mfcc_matrix)    # typecast as numpy array
